@@ -33,7 +33,7 @@ jobs:
       # Once scan completes, pull SAST issues from Fortify on Demand and generate SARIF output.
       - uses: fortify/gha-fod-generate-sarif@master
         with:
-          base-url: $FOD_URL
+          base-url: https://ams.fortify.com/
           tenant: ${{ secrets.FOD_TENANT }}
           user: ${{ secrets.FOD_USER }}
           password: ${{ secrets.FOD_PAT }}
