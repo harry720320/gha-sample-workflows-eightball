@@ -1,10 +1,10 @@
-name: Start FoD scan with Import
+name: Fortify on Demand SAST with Import
 
 on: [workflow_dispatch]
 
 jobs:
-  build:
-    # Use the appropriate runner for building your source code
+  Fortify :
+    # Use the appropriate runner for building your source code. Use Windows for projects that use msbuild.
     runs-on: ubuntu-latest
 
     steps:
@@ -16,12 +16,14 @@ jobs:
           java-version: 1.8
       # Prepare source+dependencies for upload. Update PACKAGE_OPTS based on the ScanCentral Client documentation and your project's included tech stack(s).
       - uses: fortify/gha-setup-scancentral-client@v1
-      - run: scancentral package $PACKAGE_OPTS -o package.zip
+      - name: Package code
+        run: scancentral package $PACKAGE_OPTS -o package.zip
         env:
           PACKAGE_OPTS: "-bt mvn"
       # Start Fortify on Demand SAST scan and wait until results complete. Be sure to set secrets/variables for your FoD tenant.
       - uses: fortify/gha-setup-fod-uploader@v1
-      - run: java -jar $FOD_UPLOAD_JAR -z package.zip -aurl $FOD_API_URL -purl $FOD_URL -rid "$FOD_RELEASE_ID" -tc "$FOD_TENANT" -uc "$FOD_USER" "$FOD_PAT" $FOD_UPLOADER_OPTS
+      - name: Perform SAST Scan
+        run: java -jar $FOD_UPLOAD_JAR -z package.zip -aurl $FOD_API_URL -purl $FOD_URL -rid "$FOD_RELEASE_ID" -tc "$FOD_TENANT" -uc "$FOD_USER" "$FOD_PAT" $FOD_UPLOADER_OPTS
         env: 
           FOD_TENANT: ${{ secrets.FOD_TENANT }}  
           FOD_USER: ${{ secrets.FOD_USER }}
@@ -31,7 +33,8 @@ jobs:
           FOD_API_URL: "https://api.ams.fortify.com/"
           FOD_UPLOADER_OPTS: "-ep 2 -pp 0 -I 1 -apf"
       # Once scan completes, pull SAST issues from Fortify on Demand and generate SARIF output.
-      - uses: fortify/gha-fod-generate-sarif@master
+      - name: Download Results
+        uses: fortify/gha-fod-generate-sarif@master
         with:
           base-url: https://ams.fortify.com/
           tenant: ${{ secrets.FOD_TENANT }}
@@ -40,7 +43,8 @@ jobs:
           release-id: ${{ secrets.FOD_RELEASE_ID }}
           output: ./sarif/output.sarif
       # Import Fortify on Demand results to GitHub Security Code Scanning
-      - uses: github/codeql-action/upload-sarif@v1
+      - name: Import Results
+        uses: github/codeql-action/upload-sarif@v1
         with:
           sarif_file: ./sarif/output.sarif
       # Save artifacts for troubleshooting (if necessary). These steps can be removed after successful configuration is confirmed.
