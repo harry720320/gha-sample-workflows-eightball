@@ -4,33 +4,46 @@ on: [workflow_dispatch]
 
 jobs:
   build:
+    # Use the appropriate runner for building your source code
     runs-on: ubuntu-latest
 
     steps:
+      # Check out source cdoe
       - uses: actions/checkout@v2
+      # Set up Java 1.8; required by ScanCentral Client and FoD Uploader
       - uses: actions/setup-java@v1
         with:
           java-version: 1.8
+      # Prepare source+dependencies for upload. Update PACKAGE_OPTS based on the ScanCentral Client documentation and your project's included tech stack(s).
       - uses: fortify/gha-setup-scancentral-client@v1
+      - run: scancentral package $PACKAGE_OPTS -o package.zip
+        env:
+          PACKAGE_OPTS: "-bt mvn"
+      # Start Fortify on Demand SAST scan and wait until results complete. Be sure to set secrets/variables for your FoD tenant.
       - uses: fortify/gha-setup-fod-uploader@v1
-      - run: scancentral package -bt mvn -o package.zip
-      - run: java -jar $FOD_UPLOAD_JAR -z package.zip -aurl https://api.ams.fortify.com/ -purl https://ams.fortify.com/ -rid "$FOD_RELEASE_ID" -tc "$FOD_TENANT" -uc "$FOD_USER" "$FOD_PAT" -ep 2 -pp 0 -I 1 -apf
+      - run: java -jar $FOD_UPLOAD_JAR -z package.zip -aurl $FOD_API_URL -purl $FOD_URL -rid "$FOD_RELEASE_ID" -tc "$FOD_TENANT" -uc "$FOD_USER" "$FOD_PAT" $FOD_UPLOADER_OPTS
         env: 
           FOD_TENANT: ${{ secrets.FOD_TENANT }}  
           FOD_USER: ${{ secrets.FOD_USER }}
           FOD_PAT: ${{ secrets.FOD_PAT }}
-          FOD_RELEASE_ID: ${{ secrets.FOD_RELEASE_ID }} 
+          FOD_RELEASE_ID: ${{ secrets.FOD_RELEASE_ID }}
+          FOD_URL: "https://ams.fortify.com/"
+          FOD_API_URL: "https://api.ams.fortify.com/"
+          FOD_UPLOADER_OPTS: "-ep 2 -pp 0 -I 1 -apf"
+      # Once scan completes, pull SAST issues from Fortify on Demand and generate SARIF output.
       - uses: fortify/gha-fod-generate-sarif@master
         with:
-          base-url: https://ams.fortify.com
+          base-url: $FOD_URL
           tenant: ${{ secrets.FOD_TENANT }}
           user: ${{ secrets.FOD_USER }}
           password: ${{ secrets.FOD_PAT }}
           release-id: ${{ secrets.FOD_RELEASE_ID }}
           output: ./sarif/output.sarif
+      # Import Fortify on Demand results to GitHub Security Code Scanning
       - uses: github/codeql-action/upload-sarif@v1
         with:
           sarif_file: ./sarif/output.sarif
+      # Save artifacts for troubleshooting (if necessary). These steps can be removed after successful configuration is confirmed.
       - uses: actions/upload-artifact@v2
         if: always()
         with:
