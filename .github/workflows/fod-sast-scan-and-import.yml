@@ -36,7 +36,7 @@ jobs:
       #   ScanCentral Client will download dependencies for maven, gradle and msbuild projects.
       #   For other build tools, add your build commands to download necessary dependencies and prepare according to Fortify on Demand Packaging documentation.
       - name: Download Fortify ScanCentral Client
-        uses: fortify/gha-setup-scancentral-client@v2
+        uses: fortify/gha-setup-scancentral-client@master
       - name: Package Code + Dependencies
         run: scancentral package $PACKAGE_OPTS -o package.zip
         env:
@@ -44,7 +44,7 @@ jobs:
       
       # Start Fortify on Demand SAST scan and wait until results complete. Be sure to set secrets/variables for your FoD tenant.
       - name: Download Fortify on Demand Universal CI Tool
-        uses: fortify/gha-setup-fod-uploader@v1
+        uses: fortify/gha-setup-fod-uploader@master
       - name: Perform SAST Scan
         run: java -jar $FOD_UPLOAD_JAR -z package.zip -aurl $FOD_AURL -purl $FOD_PURL -rid "$FOD_RELEASE_ID" -tc "$FOD_TENANT" -uc "$FOD_USER" "$FOD_PAT" $FOD_UPLOADER_OPTS
         env: 
@@ -58,7 +58,7 @@ jobs:
       
       # Once scan completes, pull SAST issues from Fortify on Demand and generate SARIF output.
       - name: Export results to GitHub-optimized SARIF
-        uses: fortify/gha-export-vulnerabilities@v1
+        uses: fortify/gha-export-vulnerabilities@master
         with:
           fod_base_url: ${{ secrets.FOD_EIGHTBALL_BASE_URL }}
           fod_tenant: ${{ secrets.FOD_EIGHTBALL_TENANT }}
